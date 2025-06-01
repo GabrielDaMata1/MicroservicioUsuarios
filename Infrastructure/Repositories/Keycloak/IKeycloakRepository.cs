@@ -9,5 +9,8 @@ namespace MicroserviciosUsuarios.Infrastructure.Repositories.Keycloak
     Task<HttpStatusCode> CambiarContrasenaAsync(string userId, string nuevaContrasena);
 
     Task<HttpStatusCode> EnviarCorreoVerificacion(string userId, string redirectUri = null);
-}
+    Task<HttpStatusCode> AsignarRolUsuario(string userId, string roleName);
+
+    }
+
 }

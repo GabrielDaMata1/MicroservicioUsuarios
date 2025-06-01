@@ -1,7 +1,9 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using MicroservicioUsuarios.Infrastructure.Models;
 using Microsoft.Extensions.Configuration;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace MicroservicioUsuarios.Infrastructure.Services
 {
@@ -19,7 +21,6 @@ namespace MicroservicioUsuarios.Infrastructure.Services
         _config = config;
     }
 
-    //  Get or refresh admin token
     public async Task<string> GetAdminTokenAsync()
     {
         if (!string.IsNullOrEmpty(_accessToken) && _tokenExpiryTime > DateTime.UtcNow.AddMinutes(-1))
@@ -32,31 +33,23 @@ namespace MicroservicioUsuarios.Infrastructure.Services
             { "username", "admin" },
             { "password", "adminpassword" }
         };
-        try
-        {
-            var tokenUrl =
-                $"{_config["Keycloak:BaseUrl"]}/realms/{_config["Keycloak:AdmRealm"]}/protocol/openid-connect/token";
-            var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(parameters));
-            response.EnsureSuccessStatusCode();
 
-            var content = await response.Content.ReadAsStringAsync();
-            var tokenJson = JsonDocument.Parse(content).RootElement;
+        var tokenUrl = $"{_config["Keycloak:BaseUrl"]}/realms/{_config["Keycloak:AdmRealm"]}/protocol/openid-connect/token";
+        var response = await _httpClient.PostAsync(tokenUrl, new FormUrlEncodedContent(parameters));
+        response.EnsureSuccessStatusCode();
 
-            _accessToken = tokenJson.GetProperty("access_token").GetString();
-            var expiresIn = tokenJson.GetProperty("expires_in").GetInt32();
-            _tokenExpiryTime = DateTime.UtcNow.AddSeconds(expiresIn);
-        }
-        catch(Exception ex)
-        {
-            throw ex;
-        }
-        
+        var content = await response.Content.ReadAsStringAsync();
+        var tokenJson = JsonDocument.Parse(content).RootElement;
+
+        _accessToken = tokenJson.GetProperty("access_token").GetString();
+        var expiresIn = tokenJson.GetProperty("expires_in").GetInt32();
+        _tokenExpiryTime = DateTime.UtcNow.AddSeconds(expiresIn);
 
         return _accessToken!;
     }
 
-    //  Create a new user in Keycloak
-    public async Task CreateUserAsync(string email, string name, string lastname, string password)
+        //  Create a new user in Keycloak
+        public async Task CreateUserAsync(string email, string name, string lastname, string password)
     {
         var token = await GetAdminTokenAsync();
         Console.WriteLine($"T es {token}");
@@ -179,30 +172,58 @@ namespace MicroservicioUsuarios.Infrastructure.Services
         }
 
         public async Task<bool> ActualizarUsuarioEnKeycloakAsync(string userId, string nuevoNombre, string nuevoApellido, string nuevoCorreo)
-        {
-            using var httpClient = new HttpClient();
+         {
+             using var httpClient = new HttpClient();
 
-            var tokenAdmin = await GetAdminTokenAsync();
+             var tokenAdmin = await GetAdminTokenAsync();
 
-            var baseUrl = "http://localhost:8080";
-            string url = $"{baseUrl}/admin/realms/{_config["Keycloak:UserRealm"]}/users/{userId}/";
+             var baseUrl = "http://localhost:8080";
+             string url = $"{baseUrl}/admin/realms/{_config["Keycloak:UserRealm"]}/users/{userId}";
 
             var body = new
+             {
+                 firstName = nuevoNombre,
+                 lastName = nuevoApellido,
+                 email = nuevoCorreo,
+                 username = nuevoCorreo
+             };
+             var jsonBody = JsonSerializer.Serialize(body);
+             var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+             httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+
+             var response = await httpClient.PutAsync(url, content);
+
+             return response.IsSuccessStatusCode;
+         }
+        public async Task AsignarRolUsuario( string userId, string roleName)
+        {
+            var adminAccessToken = await GetAdminTokenAsync();
+            var roleUrl = $"http://localhost:8080/admin/realms/{_config["Keycloak:UserRealm"]}/clients/{_config["Keycloak:UserClientId"]}/roles/{roleName}";
+            var roleRequest = new HttpRequestMessage(HttpMethod.Get, roleUrl);
+            roleRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
+
+            var roleResponse = await _httpClient.SendAsync(roleRequest);
+            roleResponse.EnsureSuccessStatusCode();
+
+            var roleJson = await roleResponse.Content.ReadAsStringAsync();
+            var role = JsonSerializer.Deserialize<RoleRepresentation[]>(roleJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })?[0]
+                       ?? JsonSerializer.Deserialize<RoleRepresentation>(roleJson);
+
+            if (role == null)
             {
-                firstName = nuevoNombre,
-                lastName = nuevoApellido,
-                email = nuevoCorreo,
-                username = nuevoCorreo
-            };
+                throw new Exception("Role not found or invalid response");
+            }
 
-            var jsonBody = JsonSerializer.Serialize(body);
-            var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+            var assignUrl = $"http://localhost:8080/admin/realms/{_config["Keycloak:UserRealm"]}/users/{userId}/role-mappings/clients/{_config["Keycloak:UserClientId"]}";
+            var assignRequest = new HttpRequestMessage(HttpMethod.Post, assignUrl);
+            assignRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
 
-            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+            var roleArray = JsonSerializer.Serialize(new[] { role });
+            assignRequest.Content = new StringContent(roleArray, Encoding.UTF8, "application/json");
 
-            var response = await httpClient.PutAsync(url, content);
-
-            return response.IsSuccessStatusCode;
+            var assignResponse = await _httpClient.SendAsync(assignRequest);
+            assignResponse.EnsureSuccessStatusCode();
         }
     }
 }

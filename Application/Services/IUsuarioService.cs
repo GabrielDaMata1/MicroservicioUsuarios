@@ -24,7 +24,10 @@ namespace MicroservicioUsuarios.Application.Services
 
         Task<string> ObtenerRolUsuarioMongoAsync(string correo);
 
-        Task<HttpStatusCode> ActualizarUsuarioEnKeycloakAsync(string userId, string nuevoNombre, string nuevoApellido,
-            string nuevoCorreo);
+        Task<HttpStatusCode> ActualizarUsuarioEnKeycloakAsync(string userId, string nuevoNombre, string nuevoApellido,string nuevoCorreo);
+
+        Task<HttpStatusCode> AsignarRolUsuario(string userId, string roleName);
+
+        Task<List<RolConPermisosDTO>> ObtenerRolesConPermisosMongoAsync();
     }
 }

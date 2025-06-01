@@ -16,12 +16,17 @@ namespace MicroservicioUsuarios.Application.Services
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly IUsuarioMongoRepository _usuarioMongoRepository;
         private readonly IKeycloakRepository _usuarioKeycloakRepository;
-    
-    public UsuarioService(IUsuarioRepository usuarioRepository, IUsuarioMongoRepository usuarioMongoRepository, IKeycloakRepository usuarioKeycloakRepository)
+        private readonly IRolRepository _rolRepository;
+
+
+    public UsuarioService(IUsuarioRepository usuarioRepository, IUsuarioMongoRepository usuarioMongoRepository, IKeycloakRepository usuarioKeycloakRepository, IRolRepository rolRepository)
+
     {
         _usuarioRepository = usuarioRepository;
         _usuarioMongoRepository = usuarioMongoRepository;
         _usuarioKeycloakRepository= usuarioKeycloakRepository;
+        _rolRepository = rolRepository;
+
     }
 
         public async Task<Guid> RegistrarUsuarioPostgresAsync(UsuarioPostgres usuario)
@@ -254,6 +259,33 @@ namespace MicroservicioUsuarios.Application.Services
             catch (Exception ex)
             {
                 return HttpStatusCode.RequestTimeout;
+            }
+        }
+
+        public async Task<HttpStatusCode> AsignarRolUsuario(string userId, string roleName)
+    
+        {
+            try
+            {
+                await _usuarioKeycloakRepository.AsignarRolUsuario(userId, roleName);
+                return HttpStatusCode.OK;
+            }
+            catch (Exception ex)
+            {
+                return HttpStatusCode.RequestTimeout;
+            }
+        }
+
+        public async Task<List<RolConPermisosDTO>> ObtenerRolesConPermisosMongoAsync()
+        {
+            try
+            {
+                var resul = await _rolRepository.ObtenerRolesConPermisosAsync();
+                return resul;
+            }
+            catch (Exception ex)
+            {
+                throw new UsuarioMongoRepositoryException($"Error al intentar obtener el usuario en MongoDB: {ex.Message}", ex);
             }
         }
 

@@ -126,5 +126,13 @@ namespace MicroservicioUsuarios.WebAPIUsuarios.Controllers
         }
 
 
+        [HttpGet("roles/permisos")]
+        public async Task<IActionResult> ObtenerRolesConPermisos()
+        {
+            var roles = await _mediator.Send(new ConsultarRolesYPermisosQuery());
+            return roles.Any() ? Ok(roles) : NotFound("❌ No se encontraron roles y permisos.");
+        }
+
+
     }
 }

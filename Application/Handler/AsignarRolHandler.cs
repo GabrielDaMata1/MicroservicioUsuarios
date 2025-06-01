@@ -34,6 +34,9 @@ namespace MicroservicioUsuarios.Application.Handler
             var resul= await _usuarioService.ActualizarUsuarioPostgresAsync(request.CorreoUsuario, usuario.FromMongoToPostgres());
             if (resul == HttpStatusCode.OK)
             {
+
+                await _usuarioService.AsignarRolUsuario(request.NombreRol.userId,
+                    request.NombreRol.nombre_rol);
                 await _publishEndpoint.Publish(new UsuarioModificadoEvent(usuario.Id, usuario.Nombre, usuario.Apellido, usuario.Correo, usuario.Telefono, usuario.Direccion, usuario.RolId, request.CorreoUsuario));
                 return true;
             } else
