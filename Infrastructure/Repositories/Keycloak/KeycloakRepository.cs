@@ -71,6 +71,19 @@ namespace MicroserviciosUsuarios.Infrastructure.Repositories.Keycloak
             }
         }
 
+        public async Task<HttpStatusCode> AsignarRolUsuario(string userId, string roleName)
+        {
+            try
+            {
+                await _authService.AsignarRolUsuario(userId, roleName);
+                return HttpStatusCode.OK;
+            }
+            catch (Exception ex)
+            {
+                return HttpStatusCode.RequestTimeout;
+            }
+        }
+
     }
 
 }

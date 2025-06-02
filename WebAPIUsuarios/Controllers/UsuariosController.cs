@@ -125,6 +125,19 @@ namespace MicroservicioUsuarios.WebAPIUsuarios.Controllers
             return resultado ? Ok("✅ Rol asignado correctamente.") : BadRequest("❌ Error al asignar rol.");
         }
 
+        [HttpGet("roles/permisos")]
+        public async Task<IActionResult> ObtenerRolesConPermisos()
+        {
+            var roles = await _mediator.Send(new ConsultarRolesYPermisosQuery());
+            return roles.Any() ? Ok(roles) : NotFound("❌ No se encontraron roles y permisos.");
+        }
+
+        [HttpPut("roles/modificarPermisos")]
+        public async Task<IActionResult> ModificarPermisosRol([FromBody] ModificarPermisosRolDTO permisosRolDto)
+        {
+            var resultado = await _mediator.Send(new ModificarPermisosRolCommand(permisosRolDto));
+            return resultado ? Ok("✅ Permisos actualizados correctamente.") : BadRequest("❌ Error al actualizar permisos.");
+        }
 
     }
 }

@@ -13,7 +13,8 @@ using MicroserviciosUsuarios.Application.Handler;
 using MicroservicioUsuarios.Application.Handler;
 using MicroservicioUsuarios.Infrastructure.Services;
 using MicroservicioUsuarios.Application.Services;
-
+using MicroservicioUsuarios.Infrastructure.Consumers;
+using MicroservicioUsuarios.Infrastructure.Repositories.PostgreSQL;
 using MicroservicioUsuarios.WebAPIUsuarios.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,12 +27,12 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Mi API",
         Version = "v1",
-        Description = "Documentación de mi API usando Swagger"
+        Description = "Documentaciï¿½n de mi API usando Swagger"
     });
 });
 
 
-// Configuración de PostgreSQL
+// Configuraciï¿½n de PostgreSQL
 builder.Services.AddDbContext<SubastaDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("PostgresConnection")));
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
@@ -39,19 +40,22 @@ builder.Services.AddScoped<IUsuarioMongoRepository, UsuarioMongoRepository>();
 builder.Services.AddScoped<IHistorialActividadRepository, HistorialActividadRepository>();
 builder.Services.AddScoped<IHistorialActividadMongoRepository, HistorialActividadMongoRepository>();
 builder.Services.AddScoped<IKeycloakRepository, KeycloakRepository>();
+builder.Services.AddScoped<IRolMongoRepository, RolMongoRepository>();
+builder.Services.AddScoped<IRolRepository, RolRepository>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
 builder.Services.AddScoped<IHistorialActividadServices, HistorialActividadServices>();
 builder.Services.AddHttpClient<KeycloakAuthService>();
-// Configuración de MongoDB
+// Configuraciï¿½n de MongoDB
 var mongoClient = new MongoClient("mongodb://localhost:27017");
 builder.Services.AddSingleton<IMongoClient>(mongoClient);
 
-// Configuración de RabbitMQ con MassTransit
+// Configuraciï¿½n de RabbitMQ con MassTransit
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<UsuarioRegistradoConsumer>();
     x.AddConsumer<UsuarioModificadoConsumer>();
     x.AddConsumer<ActividadRegistradaConsumer>();
+    x.AddConsumer<RolPermisosModificadoConsumer>();
 
     x.UsingRabbitMq((context, cfg) =>
     {
@@ -75,15 +79,21 @@ builder.Services.AddMassTransit(x =>
         {
             e.ConfigureConsumer<ActividadRegistradaConsumer>(context);
         });
+
+        cfg.ReceiveEndpoint("rolpermisos-modificado-queue", e =>
+        {
+            e.ConfigureConsumer<RolPermisosModificadoConsumer>(context);
+        });
     });
 });
 
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<RegistrarUsuarioHandler>());
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ConsultarCorreoHandler>());
-builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ActualizarContraseñaHandler>());
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ActualizarContraseÃ±aHandler>());
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ActualizarPerfilUsuarioHandler>());
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<ConsultarUsuariosHandler>());
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<AsignarRolHandler>());
+
 
 
 

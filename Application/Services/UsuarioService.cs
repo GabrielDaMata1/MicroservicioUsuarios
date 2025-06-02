@@ -7,6 +7,7 @@ using MicroserviciosUsuarios.Infrastructure.Repositories.MongoDB;
 using MicroserviciosUsuarios.Infrastructure.Repositories.PostgreSQL;
 using MicroservicioUsuarios.Application.Exceptions;
 using MicroservicioUsuarios.Infrastructure.Models;
+using MicroservicioUsuarios.Infrastructure.Repositories.PostgreSQL;
 using MongoDB.Driver;
 
 namespace MicroservicioUsuarios.Application.Services
@@ -16,12 +17,18 @@ namespace MicroservicioUsuarios.Application.Services
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly IUsuarioMongoRepository _usuarioMongoRepository;
         private readonly IKeycloakRepository _usuarioKeycloakRepository;
-    
-    public UsuarioService(IUsuarioRepository usuarioRepository, IUsuarioMongoRepository usuarioMongoRepository, IKeycloakRepository usuarioKeycloakRepository)
+        private readonly IRolMongoRepository _rolRepository;
+        private readonly IRolRepository _rolPostgresRepository;
+
+    public UsuarioService(IUsuarioRepository usuarioRepository, IUsuarioMongoRepository usuarioMongoRepository, IKeycloakRepository usuarioKeycloakRepository, IRolMongoRepository rolRepository, IRolRepository rolPostgresRepository)
+
     {
         _usuarioRepository = usuarioRepository;
         _usuarioMongoRepository = usuarioMongoRepository;
         _usuarioKeycloakRepository= usuarioKeycloakRepository;
+        _rolRepository = rolRepository;
+        _rolPostgresRepository = rolPostgresRepository;
+
     }
 
         public async Task<Guid> RegistrarUsuarioPostgresAsync(UsuarioPostgres usuario)
@@ -257,7 +264,71 @@ namespace MicroservicioUsuarios.Application.Services
             }
         }
 
+        public async Task<HttpStatusCode> AsignarRolUsuario(string userId, string roleName)
+    
+        {
+            try
+            {
+                await _usuarioKeycloakRepository.AsignarRolUsuario(userId, roleName);
+                return HttpStatusCode.OK;
+            }
+            catch (Exception ex)
+            {
+                return HttpStatusCode.RequestTimeout;
+            }
+        }
 
+        public async Task<List<RolConPermisosDTO>> ObtenerRolesConPermisosMongoAsync()
+        {
+            try
+            {
+                var resul = await _rolRepository.ObtenerRolesConPermisosAsync();
+                return resul;
+            }
+            catch (Exception ex)
+            {
+                throw new UsuarioMongoRepositoryException($"Error al intentar obtener roless con permisos en MongoDB: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<List<int>> ObtenerIdsPermisosMongoAsync(List<string> nombresPermisos)
+        {
+            try
+            {
+                var resul = await _rolRepository.ObtenerIdsPermisosAsync(nombresPermisos);
+                return resul;
+            }
+            catch (Exception ex)
+            {
+                throw new UsuarioMongoRepositoryException($"Error al intentar obtener los id's de los permisos en MongoDB: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<bool> ModificarPermisosMongoRolAsync(int rolId, List<int> nuevosPermisos)
+        {
+            try
+            {
+                var resul = await _rolRepository.ModificarPermisosRolAsync(rolId, nuevosPermisos);
+                return resul;
+            }
+            catch (Exception ex)
+            {
+                throw new UsuarioMongoRepositoryException($"Error al intentar modificar el usuario en MongoDB: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<bool> ModificarPermisosRolPostgresAsync(int rolId, List<int> nuevosPermisos)
+        {
+            try
+            {
+                var resul = await _rolPostgresRepository.ModificarPermisosRolAsync(rolId, nuevosPermisos);
+                return resul;
+            }
+            catch (Exception ex)
+            {
+                throw new UsuarioPostgresRepositoryException($"Error al intentar modificar el usuario en Postgres: {ex.Message}", ex);
+            }
+        }
 
     }
 

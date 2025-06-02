@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Infrastructure.Models;
 using Microsoft.Extensions.Configuration;
 
 namespace MicroservicioUsuarios.Infrastructure.Services
@@ -203,6 +204,36 @@ namespace MicroservicioUsuarios.Infrastructure.Services
             var response = await httpClient.PutAsync(url, content);
 
             return response.IsSuccessStatusCode;
+        }
+
+        public async Task AsignarRolUsuario(string userId, string roleName)
+        {
+            var adminAccessToken = await GetAdminTokenAsync();
+            var roleUrl = $"http://localhost:8080/admin/realms/{_config["Keycloak:UserRealm"]}/clients/{_config["Keycloak:UserClientId"]}/roles/{roleName}";
+            var roleRequest = new HttpRequestMessage(HttpMethod.Get, roleUrl);
+            roleRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
+
+            var roleResponse = await _httpClient.SendAsync(roleRequest);
+            roleResponse.EnsureSuccessStatusCode();
+
+            var roleJson = await roleResponse.Content.ReadAsStringAsync();
+            var role = JsonSerializer.Deserialize<RoleRepresentation[]>(roleJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })?[0]
+                       ?? JsonSerializer.Deserialize<RoleRepresentation>(roleJson);
+
+            if (role == null)
+            {
+                throw new Exception("Role not found or invalid response");
+            }
+
+            var assignUrl = $"http://localhost:8080/admin/realms/{_config["Keycloak:UserRealm"]}/users/{userId}/role-mappings/clients/{_config["Keycloak:UserClientId"]}";
+            var assignRequest = new HttpRequestMessage(HttpMethod.Post, assignUrl);
+            assignRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminAccessToken);
+
+            var roleArray = JsonSerializer.Serialize(new[] { role });
+            assignRequest.Content = new StringContent(roleArray, Encoding.UTF8, "application/json");
+
+            var assignResponse = await _httpClient.SendAsync(assignRequest);
+            assignResponse.EnsureSuccessStatusCode();
         }
     }
 }
